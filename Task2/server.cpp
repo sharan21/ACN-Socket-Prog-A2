@@ -33,45 +33,54 @@ void send_recv(int i, fd_set *master, int sockfd, int fdmax)
 	if ((nbytes_recvd = recv(i, recv_buf, BUFSIZE, 0)) <= 0) {
 		if (nbytes_recvd == 0) {
 			printf("socket %d hung up\n", i);
-		}else {
+		}
+		else{
 			perror("recv");
 		}
 		close(i);
 		FD_CLR(i, master);
-	}else { 
-	//	printf("%s\n", recv_buf);
+	}
+	else{ 
 		for(j = 0; j <= fdmax; j++){
-			send_to_all(j, i, sockfd, nbytes_recvd, recv_buf, master );
-		}
+
+			if (FD_ISSET(j, master) && j != sockfd && j != i){ // socket has data, that isnt server socket
+				
+				if(send(j, recv_buf, nbytes_recvd, 0) < 0){
+					cout << "Failed to send to client: " << j << endl; 
+				}
+
+			}
+		}		
 	}	
 }
 		
-void connection_accept(fd_set *master, int *fdmax, int sockfd, struct sockaddr_in *client_addr)
+void accept_client_connection(fd_set *master, int *fdmax, int sockfd, struct sockaddr_in client_addr)
 {
-	socklen_t addrlen;
-	int newsockfd;
+	socklen_t client_addr_len;
+	int client_fd;
 	
-	addrlen = sizeof(struct sockaddr_in);
-	if((newsockfd = accept(sockfd, (struct sockaddr *)client_addr, &addrlen)) == -1) {
-		perror("accept");
+	client_addr_len = sizeof(struct sockaddr_in);
+
+	if((client_fd = accept(sockfd, (struct sockaddr *) &client_addr, &client_addr_len)) < 0){
+		cout << "Failed to accept client" << endl;
 		exit(1);
-	}else {
-		FD_SET(newsockfd, master);
-		if(newsockfd > *fdmax){
-			*fdmax = newsockfd;
-		}
-		printf("new connection from %s on port %d \n",inet_ntoa(client_addr->sin_addr), ntohs(client_addr->sin_port));
+	}
+	else{
+		FD_SET(client_fd, master);
+		
+		if(client_fd > *fdmax)
+			*fdmax = client_fd;
+
+		cout << "connected to new client!" << endl;
 	}
 }
 	
 
 int main()
 {
-	int flag = 1;
-	fd_set master;
-	fd_set read_fds;
-	int fdmax, i;
-	int sockfd= 0;
+	int flag = 1, sockfd = 0, fdmax, i;
+	fd_set master, read_fds;
+	
 	struct sockaddr_in my_addr, client_addr;
 	
 	FD_ZERO(&master);
@@ -110,7 +119,7 @@ int main()
 	
 	fdmax = sockfd;
 
-	while(1){
+	while(true){
 		read_fds = master;
 
 		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) < 0){
@@ -121,7 +130,7 @@ int main()
 		for (i = 0; i <= fdmax; i++){
 			if (FD_ISSET(i, &read_fds)){
 				if (i == sockfd)
-					connection_accept(&master, &fdmax, sockfd, &client_addr);
+					accept_client_connection(&master, &fdmax, sockfd, client_addr);
 				else
 					send_recv(i, &master, sockfd, fdmax);
 			}
