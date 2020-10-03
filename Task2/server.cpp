@@ -12,44 +12,24 @@
 using namespace std;
 	
 #define PORT 4950
-#define BUFSIZE 1024
 
-void send_to_all(int j, int i, int sockfd, int nbytes_recvd, char *recv_buf, fd_set *master)
-{
-	if (FD_ISSET(j, master)){
-		if (j != sockfd && j != i) {
-			if (send(j, recv_buf, nbytes_recvd, 0) == -1) {
-				perror("send");
-			}
-		}
-	}
-}
+
+char receiver_buffer[1024], buf[1024];
+
 		
-void send_recv(int i, fd_set *master, int sockfd, int fdmax)
+void service_socket(int client_fd, fd_set *master, int sockfd, int fdmax)
 {
-	int nbytes_recvd, j;
-	char recv_buf[BUFSIZE], buf[BUFSIZE];
+	int rec_buffer_size, j;
 	
-	if ((nbytes_recvd = recv(i, recv_buf, BUFSIZE, 0)) <= 0) {
-		if (nbytes_recvd == 0) {
-			printf("socket %d hung up\n", i);
-		}
-		else{
-			perror("recv");
-		}
-		close(i);
-		FD_CLR(i, master);
+	if ((rec_buffer_size = recv(client_fd, receiver_buffer, 1024, 0)) == 0){
+		close(client_fd);
+		FD_CLR(client_fd, master);
 	}
 	else{ 
 		for(j = 0; j <= fdmax; j++){
-
-			if (FD_ISSET(j, master) && j != sockfd && j != i){ // socket has data, that isnt server socket
+			if (FD_ISSET(j, master) && j != sockfd && j != client_fd) // socket has data, that isnt server socket
+				send(j, receiver_buffer, rec_buffer_size, 0); 
 				
-				if(send(j, recv_buf, nbytes_recvd, 0) < 0){
-					cout << "Failed to send to client: " << j << endl; 
-				}
-
-			}
 		}		
 	}	
 }
@@ -132,7 +112,7 @@ int main()
 				if (i == sockfd)
 					accept_client_connection(&master, &fdmax, sockfd, client_addr);
 				else
-					send_recv(i, &master, sockfd, fdmax);
+					service_socket(i, &master, sockfd, fdmax);
 			}
 		}
 	}
