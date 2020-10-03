@@ -89,10 +89,8 @@ int main( int argc , char *argv[])
 {
     unsigned char hostname[100];
  
-    //Get the DNS servers from the resolv.conf file
     get_dns_servers();
      
-    //Get the hostname from the terminal
     printf("Enter Hostname to Lookup : ");
     scanf("%s" , hostname);
      
@@ -102,9 +100,6 @@ int main( int argc , char *argv[])
     return 0;
 }
  
-/*
- * Perform a DNS query by sending a packet
- * */
 void ngethostbyname(unsigned char *host , int query_type)
 {
     unsigned char buf[65536],*qname,*reader;
@@ -360,33 +355,9 @@ u_char* ReadName(unsigned char* reader,unsigned char* buffer,int* count)
     return name;
 }
  
-/*
- * Get the DNS servers from /etc/resolv.conf file on Linux
- * */
+
 void get_dns_servers()
 {
-    // FILE *fp;
-    // char line[200] , *p;
-    // if((fp = fopen("/etc/resolv.conf" , "r")) == NULL)
-    // {
-    //     printf("Failed opening /etc/resolv.conf file \n");
-    // }
-     
-    // while(fgets(line , 200 , fp))
-    // {
-    //     if(line[0] == '#')
-    //     {
-    //         continue;
-    //     }
-    //     if(strncmp(line , "nameserver" , 10) == 0)
-    //     {
-    //         p = strtok(line , " ");
-    //         p = strtok(NULL , " ");
-             
-    //         //p now is the dns ip :)
-    //         //????
-    //     }
-    // }
      
     strcpy(dns_servers[0] , "192.168.35.52");
     // strcpy(dns_servers[1] , "208.67.220.220");
