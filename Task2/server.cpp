@@ -16,39 +16,39 @@ using namespace std;
 
 char receiver_buffer[1024], buf[1024];
 
-void service_socket(int client_fd, fd_set *master, int sockfd, int fdmax)
+void service_socket(int client_fd, fd_set *tot_fds_used, int server_soc_fd, int last_fd)
 {
 	int rec_buffer_size, j;
 	
 	if ((rec_buffer_size = recv(client_fd, receiver_buffer, 1024, 0)) == 0){
 		close(client_fd);
-		FD_CLR(client_fd, master);
+		FD_CLR(client_fd, tot_fds_used);
 	}
 	else{ 
-		for(j = 0; j <= fdmax; j++){
-			if (FD_ISSET(j, master) && j != sockfd && j != client_fd) // socket has data, that isnt server socket
+		for(j = 0; j <= last_fd; j++){
+			if (FD_ISSET(j, tot_fds_used) && j != server_soc_fd && j != client_fd) // socket has data, that isnt server socket
 				send(j, receiver_buffer, rec_buffer_size, 0); 
 				
 		}		
 	}	
 }
 		
-void accept_client_connection(fd_set *master, int *fdmax, int sockfd, struct sockaddr_in client_addr)
+void accept_client_connection(fd_set *tot_fds_used, int *last_fd, int server_soc_fd, struct sockaddr_in client_addr)
 {
 	socklen_t client_addr_len;
 	int client_fd;
 	
 	client_addr_len = sizeof(struct sockaddr_in);
 
-	if((client_fd = accept(sockfd, (struct sockaddr *) &client_addr, &client_addr_len)) < 0){
+	if((client_fd = accept(server_soc_fd, (struct sockaddr *) &client_addr, &client_addr_len)) < 0){
 		cout << "Failed to accept client" << endl;
 		exit(1);
 	}
 	else{
-		FD_SET(client_fd, master);
+		FD_SET(client_fd, tot_fds_used);
 		
-		if(client_fd > *fdmax)
-			*fdmax = client_fd;
+		if(client_fd > *last_fd)
+			*last_fd = client_fd;
 
 		cout << "connected to new client!" << endl;
 	}
@@ -57,16 +57,16 @@ void accept_client_connection(fd_set *master, int *fdmax, int sockfd, struct soc
 
 int main()
 {
-	int flag = 1, sockfd = 0, fdmax, i;
-	fd_set master, read_fds;
+	int flag = 1, server_soc_fd = 0, last_fd, i;
+	fd_set tot_fds_used, read_fds;
 	
 	struct sockaddr_in my_addr, client_addr;
 	
-	FD_ZERO(&master);
+	FD_ZERO(&tot_fds_used);
 	FD_ZERO(&read_fds);
 	
 
-	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+	if((server_soc_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		cout << "Failed to init socket" << endl;
 		exit(1);
 	}
@@ -76,17 +76,17 @@ int main()
 	my_addr.sin_addr.s_addr = INADDR_ANY;
 	memset(my_addr.sin_zero, '\0', sizeof my_addr.sin_zero);
 		
-	if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int)) < 0){
+	if(setsockopt(server_soc_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int)) < 0){
 		cout << " Failed to set socket options" << endl;
 		exit(1);
 	}
 		
-	if(bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) < 0){
+	if(bind(server_soc_fd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) < 0){
 		cout << "Failed to bind" << endl;
 		exit(1);
 	}
 
-	if(listen(sockfd, 10) < 0){
+	if(listen(server_soc_fd, 10) < 0){
 		cout << "Failed to start listening" << endl;
 		exit(1);
 	}
@@ -94,24 +94,24 @@ int main()
 	cout << "Started listening on port 4950...";
 	cout.flush();
 
-	FD_SET(sockfd, &master);
+	FD_SET(server_soc_fd, &tot_fds_used);
 	
-	fdmax = sockfd;
+	last_fd = server_soc_fd;
 
 	while(true){
-		read_fds = master;
+		read_fds = tot_fds_used; //update
 
-		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) < 0){
+		if(select(last_fd+1, &read_fds, NULL, NULL, NULL) < 0){ //
 			cout << "error occured during select()" << endl;
 			exit(1);
 		}
 		
-		for (i = 0; i <= fdmax; i++){
-			if (FD_ISSET(i, &read_fds)){
-				if (i == sockfd)
-					accept_client_connection(&master, &fdmax, sockfd, client_addr);
+		for (i = 0; i < last_fd+1 ; i++){
+			if (FD_ISSET(i, &read_fds)){ //one of the sockets needs to be serviced
+				if (i == server_soc_fd) // the server sent data, it needs to accept a new client
+					accept_client_connection(&tot_fds_used, &last_fd, server_soc_fd, client_addr);
 				else
-					service_socket(i, &master, sockfd, fdmax);
+					service_socket(i, &tot_fds_used, server_soc_fd, last_fd); // a client has sent data into its socket
 			}
 		}
 	}
