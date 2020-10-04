@@ -16,19 +16,19 @@ using namespace std;
 
 char receiver_buffer[1024], buf[1024];
 
-void service_socket(int client_fd, fd_set *all_fds, int server_soc_fd, int last_fd) //used to 1. close a client socket
+void service_socket(int client_fd, fd_set *all_fds, int server_soc_fd, int last_fd) 
 {
 	int rec_buffer_size, j;
 	
-	if ((rec_buffer_size = recv(client_fd, receiver_buffer, 1024, 0)) == 0){ //client has not sent any data, which means it wants to close connection
+	if ((rec_buffer_size = recv(client_fd, receiver_buffer, 1024, 0)) == 0){ //client wants to close connection
 		close(client_fd);
 		FD_CLR(client_fd, all_fds); //set 0 to bit corresponding to this clients fd
 	}
-	else{ // a client has pushed a message into its socket, broadcast to all other active sockets
+	else{ // a client has pushed a message to server, broadcast to all other active sockets
 
 		for(j = 0; j <= last_fd; j++){ 
-			if (FD_ISSET(j, all_fds) && j != server_soc_fd && j != client_fd) // active client fd
-				send(j, receiver_buffer, rec_buffer_size, 0); //send message to client with fd
+			if (FD_ISSET(j, all_fds) && j != server_soc_fd && j != client_fd) // check if active client fd
+				send(j, receiver_buffer, rec_buffer_size, 0); //send message to client with active fd
 				
 		}		
 	}	
@@ -114,11 +114,11 @@ int main()
 		}
 		
 		for (i = 0; i < last_fd + 1 ; i++){ //iterate through list of fds
-			if (FD_ISSET(i, &current_fds)){ //one of the sockets needs to be serviced
-				if (i == server_soc_fd) // the server sent data, it needs to accept a new client
+			if (FD_ISSET(i, &current_fds)){ //check which socket sent data
+				if (i == server_soc_fd) // server accepting new client
 					accept_client_connection(&all_fds, &last_fd, server_soc_fd, client_addr);
 				else
-					service_socket(i, &all_fds, server_soc_fd, last_fd); // a client has sent data into its socket
+					service_socket(i, &all_fds, server_soc_fd, last_fd); // a client has sent data to server
 			}
 		}
 	}
