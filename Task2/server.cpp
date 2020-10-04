@@ -16,7 +16,6 @@ using namespace std;
 
 char receiver_buffer[1024], buf[1024];
 
-		
 void service_socket(int client_fd, fd_set *master, int sockfd, int fdmax)
 {
 	int rec_buffer_size, j;
