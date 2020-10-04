@@ -26,37 +26,25 @@ struct dns_header{
 struct dns_question{
 
     char *name;        
-    uint16_t dnstype;  
-    uint16_t dnsclass; 
+    uint16_t q_type;  
+    uint16_t q_class; 
 
 }; 
-
-typedef struct{
-
-    uint16_t compression;
-    uint16_t type;
-    uint16_t class_type;
-    uint32_t ttl;
-    uint16_t length;
-    struct in_addr addr;
-
-} __attribute__((packed)) dns_record_a_t;
 
 
 int main(){
     
     struct sockaddr_in server_addr;
-    
-    char hostname[] = "www.facebook.com";
-    char* newhostname;
+    char hostname[1024];
+
+    cin >> hostname;
     
     //Create the client socket, as type SOCK_DGRAM for UDP
     int socketfd = socket (AF_INET, SOCK_DGRAM, 0);
-    
+
+    // Init the server details, htonl() is used for all numeric values
     server_addr.sin_family = AF_INET;
-    
-    //Using an online IP to hex converted, the hex code for the IITH DNS server 192.168.35.52 is 0xc0a82334
-    server_addr.sin_addr.s_addr = htonl(0xc0a82334); // all numberic values are sent using htonl()
+    server_addr.sin_addr.s_addr = htonl(0xc0a82334);  //Using an online IP to hex converted, the hex code for the IITH DNS server 192.168.35.52 is 0xc0a82334
     server_addr.sin_port = htons (53); 
 
 
@@ -69,26 +57,24 @@ int main(){
 
     // Init DNS Question
     dns_question question;
-    question.dnstype = htons(1);  
-    question.dnsclass = htons(1); 
+    question.q_type = htons(1);  
+    question.q_class = htons(1); 
+    char processed[] = "3www8facebook3com0";
+    question.name = processed; 
 
-    //DNS Name Preprocessing
-    question.name = (char *)calloc(strlen(hostname) + 2, sizeof (char));   
-    memcpy (question.name + 1, &hostname, strlen(hostname));
-
+    
 
     // Create the final packet to send
-    size_t packetlen = sizeof (header) + strlen (newhostname) + 2 + sizeof (question.dnstype) + sizeof (question.dnsclass);
+    size_t packetlen = sizeof (header) + strlen (hostname) + 2 + sizeof (question.q_type) + sizeof (question.q_class);
     uint8_t *packet = (uint8_t *) calloc(packetlen, sizeof (uint8_t));
-    uint8_t *p = (uint8_t *)packet;
 
-    memcpy (p, &header, sizeof (header));
-    p += sizeof (header);
-    memcpy (p, question.name, strlen (newhostname) + 2);
-    p += strlen (newhostname) + 2;
-    memcpy (p, &question.dnstype, sizeof (question.dnstype));
-    p += sizeof (question.dnstype);
-    memcpy (p, &question.dnsclass, sizeof (question.dnsclass));
+    memcpy (packet, &header, sizeof (header));
+    packet += sizeof (header);
+    memcpy (packet, question.name, strlen (hostname) + 2);
+    packet += strlen (hostname) + 2;
+    memcpy (packet, &question.q_type, sizeof (question.q_type));
+    packet += sizeof (question.q_type);
+    memcpy (packet, &question.q_class, sizeof (question.q_class));
 
     
     // Send the packet 
@@ -105,9 +91,10 @@ int main(){
 
     ssize_t bytes = recvfrom (socketfd, response, 512, 0, (struct sockaddr *) &server_addr, &length);
 
-    // After this we need to process the received response to attain the domain name
+    cout << "No of Bytes received: "<< (int)bytes << endl;
 
-        
+    // After this we need to process the received response to attain the received record and extract the domain name and other information
+       
 }
 
 

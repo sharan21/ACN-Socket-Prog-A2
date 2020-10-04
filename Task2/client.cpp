@@ -17,30 +17,8 @@ char sender_buffer[1024];
 char receiver_buffer[1024];
 
 string sendDataStr, rcvDataStr;
-
-
-void preprocess_host_name(unsigned char* dns,unsigned char* host) 
-{
-    int lock = 0 , i;
-    strcat((char*)host,".");
-     
-    for(i = 0 ; i < strlen((char*)host) ; i++) 
-    {
-        if(host[i]=='.') 
-        {
-            *dns++ = i-lock;
-            for(;lock<i;lock++) 
-            {
-                *dns++=host[lock];
-            }
-            lock++; //or lock=i+1;
-        }
-    }
-    *dns++='\0';
-}
-
 		
-void send_recv(int i, int sockfd)
+void service_socket(int i, int sockfd)
 {
 	
 	int nbyte_recvd;
@@ -110,7 +88,7 @@ int main()
 		
 		for(i=0; i <= fdmax; i++){
 			if(FD_ISSET(i, &read_fds))
-				send_recv(i, sockfd);
+				service_socket(i, sockfd);
 		}
 			
 	}
