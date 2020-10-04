@@ -61,6 +61,7 @@ int main()
 		cout << "failed to connect to server" << endl;
 		exit(1);
 	}
+	cout << "Connected to chat!" << endl;
 
 	// CONFIG THE FD BIT ARRAYS
 	FD_ZERO(&all_fds);

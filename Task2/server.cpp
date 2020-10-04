@@ -9,12 +9,16 @@
 #include <netdb.h>
 #include <iostream>
 
+
 using namespace std;
 	
 #define PORT 4950
 
+//global
 
 char receiver_buffer[1024], buf[1024];
+char curr_no_of_clients = 0;
+int N_MAX = 3; //default
 
 void service_socket(int client_fd, fd_set *all_fds, int server_soc_fd, int last_fd) 
 {
@@ -23,12 +27,22 @@ void service_socket(int client_fd, fd_set *all_fds, int server_soc_fd, int last_
 	if ((rec_buffer_size = recv(client_fd, receiver_buffer, 1024, 0)) == 0){ //client wants to close connection
 		close(client_fd);
 		FD_CLR(client_fd, all_fds); //set 0 to bit corresponding to this clients fd
+		curr_no_of_clients--;
 	}
 	else{ // a client has pushed a message to server, broadcast to all other active sockets
+				
+		char x[256]; 
 
-		for(j = 0; j <= last_fd; j++){ 
+		string s = to_string(client_fd);
+		char const *pchar = s.c_str();
+
+		sprintf(x, "- Client %s", pchar);
+		strcat(receiver_buffer, x);
+
+
+		for(j = 0; j <= last_fd; j++){  //broadcast this to all other connected clients
 			if (FD_ISSET(j, all_fds) && j != server_soc_fd && j != client_fd) // check if active client fd
-				send(j, receiver_buffer, rec_buffer_size, 0); //send message to client with active fd
+				send(j, receiver_buffer, rec_buffer_size + 10, 0); //send message to client with active fd
 				
 		}		
 	}	
@@ -41,12 +55,21 @@ void accept_client_connection(fd_set *all_fds, int *last_fd, int server_soc_fd, 
 	
 	client_addr_len = sizeof(struct sockaddr_in);
 
+	if(curr_no_of_clients == N_MAX)
+	{
+		cout << "Reached Max no of clients, cannot accept more!" << endl;
+		return;
+	}
+		
+
 	if((client_fd = accept(server_soc_fd, (struct sockaddr *) &client_addr, &client_addr_len)) < 0){
 		cout << "Failed to accept client" << endl;
+
 		exit(1);
 	}
 	else{
 		FD_SET(client_fd, all_fds); //set the client fd to 1
+		curr_no_of_clients++;
 		
 		if(client_fd > *last_fd) // update the last fd/ no of active dfs
 			*last_fd = client_fd;
@@ -58,6 +81,9 @@ void accept_client_connection(fd_set *all_fds, int *last_fd, int server_soc_fd, 
 
 int main()
 {
+	cout << "Enter Max no. of clients that can connect:" << endl;
+	cin >> N_MAX;
+
 	int flag = 1, server_soc_fd = 0, last_fd, i; // last fd stores the 
 	fd_set all_fds, current_fds; 
 	
@@ -123,4 +149,4 @@ int main()
 		}
 	}
 	return 0;
-}
+} 
